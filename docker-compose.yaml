@@ -1,0 +1,10 @@
+version: '2'
+services:
+  nmap:
+    build: .
+    image: sammascanner/nikto
+    volumes:
+      - ./:/scanner
+    environment:
+      - TARGET=10.101.2.201
+    command: tail -f /etc/fstab
