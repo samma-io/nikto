@@ -8,6 +8,6 @@ RUN pip3 install xmltodict amqplib
 
 
 COPY  ./code /code
+RUN chmod +x /code/scan.py
 
-
-CMD nikto
+CMD python3 /code/scan.py
