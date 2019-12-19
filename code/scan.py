@@ -17,7 +17,21 @@ def start_scan():
     '''
     Start the nmap scan of the target
     '''
-    process = subprocess.Popen('nikto -h {0}  -p {1} -C all  -output /niktoscan.csv'.format(os.environ['TARGET'],"80,443") , shell=True, universal_newlines=True,stdout=subprocess.PIPE)
+    tuning = 23
+    try:
+        tuning = format(os.environ['TUNING'])
+    except:
+        pass
+
+    port = 443
+    try:
+        port = format(os.environ['PORT'])
+    except:
+        pass    
+    
+    print('Using the tuning of {0} and port {1}'.format(tuning,port,))
+
+    process = subprocess.Popen('nikto -h {0}  -p {1} -Tuning {2}  -Display V  -output /niktoscan.csv'.format(os.environ['TARGET'],port,tuning) , shell=True, universal_newlines=True,stdout=subprocess.PIPE)
     for stdout_line in iter(process.stdout.readline, ""):
         print(stdout_line) 
     

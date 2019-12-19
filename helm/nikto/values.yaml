@@ -12,5 +12,6 @@ schedule: "30 * * * *"
 # Ip ore dns name of you target.
 # Every target will geta a job running
 domains:
-  - www.examples.com
-  - example.com
+  - www.elino.se
+  - ollebo.com
+  - samma.io
