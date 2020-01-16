@@ -7,4 +7,6 @@ services:
       - ./:/scanner
     environment:
       - TARGET=grafana.fareonline.net
+      - TUNING=23
+      - PORT=443
     command: tail -f /etc/fstab
