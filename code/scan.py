@@ -7,8 +7,9 @@
 #
 import subprocess
 import os
-import xmltodict, json
+import json
 import csv
+from sammaParser import logger
 
 
 
@@ -17,7 +18,7 @@ def start_scan():
     '''
     Start the nmap scan of the target
     '''
-    tuning = 23
+    tuning = False
     try:
         tuning = format(os.environ['TUNING'])
     except:
@@ -31,11 +32,17 @@ def start_scan():
     
     print('Using the tuning of {0} and port {1}'.format(tuning,port,))
 
-    process = subprocess.Popen('nikto -h {0}  -p {1} -Tuning {2}  -Display V  -output /niktoscan.csv'.format(os.environ['TARGET'],port,tuning) , shell=True, universal_newlines=True,stdout=subprocess.PIPE)
-    for stdout_line in iter(process.stdout.readline, ""):
-        print(stdout_line) 
+    if tuning:
+        process = subprocess.Popen('sudo nikto -h {0}  -p {1} -Tuning {2}  -Display V  -output /out/niktoscan.csv'.format(os.environ['TARGET'],port,tuning) , shell=True, universal_newlines=True,stdout=subprocess.PIPE)
+        for stdout_line in iter(process.stdout.readline, ""):
+            print(stdout_line) 
+        return_code = process.wait()
+    else:
+        process = subprocess.Popen('sudo nikto -h {0}  -p {1}  -Display V  -output /out/niktoscan.csv'.format(os.environ['TARGET'],port,tuning) , shell=True, universal_newlines=True,stdout=subprocess.PIPE)
+        for stdout_line in iter(process.stdout.readline, ""):
+            print(stdout_line)
+        return_code = process.wait()
     
-    return_code = process.wait()
     
     print("Scanning done")
 
@@ -45,32 +52,39 @@ def convert_output():
     Converts the output to json
     '''
     
-    with open('/niktoscan.csv') as csvfile:
+    with open('/out/niktoscan.csv') as csvfile:
         readCSV = csv.reader(csvfile, delimiter=',')
         for row in readCSV:
-            try: 
-                json_data ={
-                    "host":row[0],
-                    "target":os.environ['TARGET'],
-                    "type":"Nikto",
-                    "ip":row[1],
-                    "port":row[2],
-                    "OSVDB":row[3],
-                    "request": row[4],
-                    "url": row[5],
-                    "finding": row[6]
-                }
-                print(json.dumps(json_data))
+            if row[0].startswith("Nikto"):
+                pass
+            else:
+                try:
+                    json_data ={
+                        "host":row[0],
+                        "target":os.environ['TARGET'],
+                        "type":"Nikto",
+                        "ip":row[1],
+                        "port":row[2],
+                        "OSVDB":row[3],
+                        "request": row[4],
+                        "url": row[5],
+                        "finding": row[6]
+                    }
+                    logger(json_data)
+                except:
+                        json_data ={
+                        "host":row[0],
+                        "target":os.environ['TARGET'],
+                        "type":"Nikto",
+                        "ip":row[1],
+                        "port":row[1],
+                        "OSVDB":row[2],
+                        "request": row[3],
+                        "url": row[4],
+                        "finding": row[5]
+                        }
+                        logger(json_data)
 
-            except: 
-
-
-                json_data ={
-                    "target":os.environ['TARGET'],
-                    "type":"Nikto",
-                    "data": row
-                }
-                print(json.dumps(json_data))
 
 
 #Start the scan and get the output

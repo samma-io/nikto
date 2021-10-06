@@ -1,12 +1,16 @@
 version: '2'
 services:
-  nmap:
+  nikto:
     build: .
-    image: sammascanner/nikto
+    image: sammascanner/nikto:v0.2
     volumes:
       - ./:/scanner
     environment:
-      - TARGET=grafana.fareonline.net
+      - TARGET=samma.io
       - TUNING=23
       - PORT=443
-    command: tail -f /etc/fstab
+      - SAMMA_IO_SCANNER=domain
+      - SAMMA_IO_ID=g23dE222
+      - SAMMA_IO_TAGS=['scanner','prod']
+      - SAMMA_IO_JSON={"extra":"value"}
+      - WRITE_TO_FILE="true"
