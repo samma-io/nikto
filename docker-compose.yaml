@@ -3,8 +3,11 @@ services:
   nikto:
     build: .
     image: sammascanner/nikto:v0.2
+    networks:
+      - samma
     volumes:
       - ./:/scanner
+      - ./out:/out
     environment:
       - TARGET=samma.io
       - TUNING=23
@@ -14,3 +17,13 @@ services:
       - SAMMA_IO_TAGS=['scanner','prod']
       - SAMMA_IO_JSON={"extra":"value"}
       - WRITE_TO_FILE="true"
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:7.15.0
+    networks:
+      - samma
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml
+      - ./out:/out
+networks:
+  samma:
+    external: true

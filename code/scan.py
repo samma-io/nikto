@@ -9,7 +9,7 @@ import subprocess
 import os
 import json
 import csv
-from sammaParser import logger
+from sammaParser import logger, endThis
 
 
 
@@ -67,7 +67,7 @@ def convert_output():
                         "port":row[2],
                         "OSVDB":row[3],
                         "request": row[4],
-                        "url": row[5],
+                        "nikto_url": row[5],
                         "finding": row[6]
                     }
                     logger(json_data)
@@ -80,7 +80,7 @@ def convert_output():
                         "port":row[1],
                         "OSVDB":row[2],
                         "request": row[3],
-                        "url": row[4],
+                        "nikto_url": row[4],
                         "finding": row[5]
                         }
                         logger(json_data)
@@ -90,3 +90,4 @@ def convert_output():
 #Start the scan and get the output
 start_scan()
 convert_output()
+endThis()
