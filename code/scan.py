@@ -2,48 +2,57 @@
 ##
 ##
 #
-# Start the nmap scan and wait for it to complete.
+# Start the nikto scan and wait for it to complete.
 # Then format the resonse and send the data back to the server
 #
 import subprocess
 import os
+import sys
 import json
 import csv
 from sammaParser import logger, endThis
+from target_check import InvalidTarget, require_valid_target, validate_port, validate_tuning
+
+OUTPUT_FILE = '/out/niktoscan.csv'
 
 
-
-
-def start_scan():
+def nikto_command(target, port, tuning=None):
     '''
-    Start the nmap scan of the target
+    Build the nikto argv list.
+
+    Every value is its own argument, so nothing in TARGET, PORT or TUNING is
+    ever interpreted by a shell. sudo stays because the image runs as the
+    samma user with a sudoers rule for nikto.
     '''
-    tuning = False
-    try:
-        tuning = format(os.environ['TUNING'])
-    except:
-        pass
-
-    port = 443
-    try:
-        port = format(os.environ['PORT'])
-    except:
-        pass    
-    
-    print('Using the tuning of {0} and port {1}'.format(tuning,port,))
-
+    command = ['sudo', 'nikto', '-h', target, '-p', str(port)]
     if tuning:
-        process = subprocess.Popen('sudo nikto -h {0}  -p {1} -Tuning {2}  -Display V  -output /out/niktoscan.csv'.format(os.environ['TARGET'],port,tuning) , shell=True, universal_newlines=True,stdout=subprocess.PIPE)
-        for stdout_line in iter(process.stdout.readline, ""):
-            print(stdout_line) 
-        return_code = process.wait()
-    else:
-        process = subprocess.Popen('sudo nikto -h {0}  -p {1}  -Display V  -output /out/niktoscan.csv'.format(os.environ['TARGET'],port,tuning) , shell=True, universal_newlines=True,stdout=subprocess.PIPE)
-        for stdout_line in iter(process.stdout.readline, ""):
-            print(stdout_line)
-        return_code = process.wait()
-    
-    
+        command += ['-Tuning', str(tuning)]
+    command += ['-Display', 'V', '-output', OUTPUT_FILE]
+    return command
+
+
+def start_scan(target):
+    '''
+    Start the nikto scan of the target
+    '''
+    tuning = os.environ.get('TUNING') or False
+    port = os.environ.get('PORT') or 443
+
+    try:
+        validate_port(port)
+        if tuning:
+            validate_tuning(tuning)
+    except InvalidTarget as exc:
+        print("Refusing to scan: {0}".format(exc), file=sys.stderr)
+        sys.exit(2)
+
+    print('Using the tuning of {0} and port {1}'.format(tuning, port))
+
+    process = subprocess.Popen(nikto_command(target, port, tuning), universal_newlines=True, stdout=subprocess.PIPE)
+    for stdout_line in iter(process.stdout.readline, ""):
+        print(stdout_line)
+    return_code = process.wait()
+
     print("Scanning done")
 
 
@@ -51,8 +60,8 @@ def convert_output():
     '''
     Converts the output to json
     '''
-    
-    with open('/out/niktoscan.csv') as csvfile:
+
+    with open(OUTPUT_FILE) as csvfile:
         readCSV = csv.reader(csvfile, delimiter=',')
         for row in readCSV:
             if row[0].startswith("Nikto"):
@@ -87,7 +96,9 @@ def convert_output():
 
 
 
-#Start the scan and get the output
-start_scan()
-convert_output()
-endThis()
+if __name__ == '__main__':
+    #Refuse a bad target before anything runs, then scan and get the output
+    target = require_valid_target()
+    start_scan(target)
+    convert_output()
+    endThis()
