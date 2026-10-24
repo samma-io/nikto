@@ -47,6 +47,22 @@ All settings are environment variables:
 | `NATS_ENABLED` | `False` | `true` publishes every finding to NATS |
 | `NATS_URL` | `nats://localhost:4222` | NATS server |
 | `NATS_SUBJECT` | `scans` | NATS subject (the operator uses `samma-io.scan`) |
+| `NIKTO_USE_SUDO` | unset | `1` runs nikto through `sudo` as older images did, see [Privileges](#privileges) |
+
+## Privileges
+
+Nikto is a perl HTTP scanner and needs no privileges. The image runs it directly as the `samma`
+user (uid 1000). The only place it writes at run time is `/out`, which that user owns; its config
+and databases are read from the image. There is no sudo in the image, so the container can run with
+`allowPrivilegeEscalation: false`, every capability dropped and a read-only root filesystem with a
+writable `/out`, which is how the [Samma operator](https://github.com/samma-io/operator) runs
+scanner pods. With `docker run`, a directory mounted at `/out` has to be writable by uid 1000, as
+it already had to be for `WRITE_TO_FILE`.
+
+Older images ran `sudo nikto`. To get that back, build with `--build-arg INSTALL_SUDO=1`, which
+installs sudo and a sudoers rule for nikto, and set `NIKTO_USE_SUDO=1` when running. Such a
+container needs privilege escalation, so it does not run under the operator's pod security
+settings.
 
 ## In Kubernetes
 

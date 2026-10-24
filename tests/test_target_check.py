@@ -8,6 +8,7 @@ Run from the repository root:
 import os
 import sys
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_DIR = os.path.dirname(HERE)
@@ -109,27 +110,54 @@ class RequireValidTargetTests(unittest.TestCase):
                 self.assertEqual(ctx.exception.code, 2)
 
 
+NIKTO_DEFAULT = ["nikto", "-h", "example.com", "-p", "443", "-Display", "V", "-output", "/out/niktoscan.csv"]
+
+
 @unittest.skipIf(scan is None, "scan.py could not be imported")
 class NiktoCommandTests(unittest.TestCase):
-    def test_default_command(self):
-        self.assertEqual(
-            scan.nikto_command("example.com", 443),
-            ["sudo", "nikto", "-h", "example.com", "-p", "443", "-Display", "V", "-output", "/out/niktoscan.csv"],
-        )
+    def test_default_command_has_no_sudo(self):
+        self.assertEqual(scan.nikto_command("example.com", 443, environ={}), NIKTO_DEFAULT)
+
+    def test_default_reads_the_process_environment(self):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop(scan.SUDO_ENV_VAR, None)
+            self.assertEqual(scan.nikto_command("example.com", 443), NIKTO_DEFAULT)
+        with mock.patch.dict(os.environ, {scan.SUDO_ENV_VAR: "1"}):
+            self.assertEqual(scan.nikto_command("example.com", 443), ["sudo"] + NIKTO_DEFAULT)
 
     def test_tuning_is_added_before_display(self):
         self.assertEqual(
-            scan.nikto_command("example.com", "8443", "23"),
+            scan.nikto_command("example.com", "8443", "23", environ={}),
+            ["nikto", "-h", "example.com", "-p", "8443", "-Tuning", "23", "-Display", "V", "-output", "/out/niktoscan.csv"],
+        )
+
+    def test_sudo_escape_hatch_restores_the_old_command(self):
+        for value in ("1", "true", "TRUE", "yes", "on", " 1 "):
+            with self.subTest(value=value):
+                self.assertEqual(
+                    scan.nikto_command("example.com", 443, environ={"NIKTO_USE_SUDO": value}),
+                    ["sudo"] + NIKTO_DEFAULT,
+                )
+        self.assertEqual(
+            scan.nikto_command("example.com", "8443", "23", environ={"NIKTO_USE_SUDO": "1"}),
             ["sudo", "nikto", "-h", "example.com", "-p", "8443", "-Tuning", "23", "-Display", "V", "-output", "/out/niktoscan.csv"],
         )
 
+    def test_escape_hatch_is_off_for_other_values(self):
+        for value in ("", "0", "false", "no", "off", "sudo"):
+            with self.subTest(value=value):
+                self.assertEqual(scan.nikto_command("example.com", 443, environ={"NIKTO_USE_SUDO": value}), NIKTO_DEFAULT)
+                self.assertFalse(scan.use_sudo({"NIKTO_USE_SUDO": value}))
+
     def test_values_stay_single_arguments(self):
         # Even a hostile value is one argv element; there is no shell to split it.
-        command = scan.nikto_command("example.com; id", "443 && id", "2 3")
-        self.assertIn("example.com; id", command)
-        self.assertIn("443 && id", command)
-        self.assertIn("2 3", command)
-        self.assertEqual(len(command), 12)
+        for environ, length in (({}, 11), ({"NIKTO_USE_SUDO": "1"}, 12)):
+            with self.subTest(environ=environ):
+                command = scan.nikto_command("example.com; id", "443 && id", "2 3", environ=environ)
+                self.assertIn("example.com; id", command)
+                self.assertIn("443 && id", command)
+                self.assertIn("2 3", command)
+                self.assertEqual(len(command), length)
 
 
 if __name__ == "__main__":

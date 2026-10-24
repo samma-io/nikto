@@ -14,20 +14,41 @@ from sammaParser import logger, endThis
 from target_check import InvalidTarget, require_valid_target, validate_port, validate_tuning
 
 OUTPUT_FILE = '/out/niktoscan.csv'
+NIKTO = 'nikto'
+# Set to 1 (or true, yes, on) to run the old `sudo nikto` command. Off by
+# default: nikto is a perl HTTP scanner and needs no privileges, and the
+# samma operator runs scanner pods with allowPrivilegeEscalation false, where
+# sudo cannot work. The published image has no sudo; see the README.
+SUDO_ENV_VAR = 'NIKTO_USE_SUDO'
+_TRUE_VALUES = frozenset(['1', 'true', 'yes', 'on'])
 
 
-def nikto_command(target, port, tuning=None):
+def use_sudo(environ=None):
+    '''True when NIKTO_USE_SUDO is set to 1, true, yes or on.'''
+    if environ is None:
+        environ = os.environ
+    return environ.get(SUDO_ENV_VAR, '').strip().lower() in _TRUE_VALUES
+
+
+def nikto_command(target, port, tuning=None, environ=None):
     '''
     Build the nikto argv list.
 
+    nikto runs directly as the user the container runs as (samma in the
+    image). It needs no privileges, so there is no sudo in front of it and
+    the pod needs no privilege escalation. NIKTO_USE_SUDO=1 puts sudo back
+    for an image that has sudo and a sudoers rule for nikto; the flags, the
+    output file and its parsing are the same in both cases.
+
     Every value is its own argument, so nothing in TARGET, PORT or TUNING is
-    ever interpreted by a shell. sudo stays because the image runs as the
-    samma user with a sudoers rule for nikto.
+    ever interpreted by a shell.
     '''
-    command = ['sudo', 'nikto', '-h', target, '-p', str(port)]
+    command = [NIKTO, '-h', target, '-p', str(port)]
     if tuning:
         command += ['-Tuning', str(tuning)]
     command += ['-Display', 'V', '-output', OUTPUT_FILE]
+    if use_sudo(environ):
+        command = ['sudo'] + command
     return command
 
 
