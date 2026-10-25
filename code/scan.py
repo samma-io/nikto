@@ -80,8 +80,8 @@ def start_scan(target):
 
 
 # nikto 2.1.5 (Ubuntu's package) writes the ip and port of a finding as one
-# broken CSV column, e.g. `"172.18.0.2"SCALAR(0x5a381367a570)80"`, which the
-# csv module reads as `172.18.0.2SCALAR(0x5a381367a570)80"`. The row then has
+# broken CSV column, e.g. `"172.18.0.2SCALAR(0x641fce3fe290)"80"`, which the
+# csv module reads as `172.18.0.2SCALAR(0x641fce3fe290)80"`. The row then has
 # six columns instead of seven. This pulls the address and the port back out.
 _BROKEN_IP_PORT_RE = re.compile(r'^"?(?P<ip>[0-9A-Za-z.:-]+?)"?SCALAR\(0x[0-9a-fA-F]+\)"?(?P<port>[0-9]{1,5})"?$')
 _PORT_RE = re.compile(r'^[0-9]{1,5}$')

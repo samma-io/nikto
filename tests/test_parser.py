@@ -19,13 +19,15 @@ if CODE_DIR not in sys.path:
 
 import scan  # noqa: E402
 
-# Lines from the report nikto 2.1.5 (Ubuntu 24.04) wrote in the CI smoke scan
+# Raw lines of the report nikto 2.1.5 (Ubuntu 24.04) wrote in the CI smoke scan
 # of a local nginx (TARGET=web, PORT=80). The finding line has the broken
 # ip/port column.
 HEADER_LINE = '"Nikto - v2.1.5/2.1.5"'
 BANNER_LINE = '"web","172.18.0.2","80","","","","nginx/1.27.5"'
-BROKEN_LINE = ('"web","172.18.0.2"SCALAR(0x5a381367a570)80","OSVDB-0","GET","/",'
+BROKEN_LINE = ('"web","172.18.0.2SCALAR(0x641fce3fe290)"80","OSVDB-0","GET","/",'
                '"The anti-clickjacking X-Frame-Options header is not present."')
+# The same column with the quote before SCALAR, in case another build moves it.
+BROKEN_LINE_ALT = '"web","172.18.0.2"SCALAR(0x5a381367a570)80","OSVDB-0","GET","/","x"'
 GOOD_LINE = '"web","172.18.0.2","80","OSVDB-3092","GET","/admin/","This might be interesting."'
 
 
@@ -35,7 +37,7 @@ def row(line):
 
 class ParseRowTests(unittest.TestCase):
     def test_broken_column_is_what_the_old_parser_saw(self):
-        self.assertEqual(row(BROKEN_LINE)[1], '172.18.0.2SCALAR(0x5a381367a570)80"')
+        self.assertEqual(row(BROKEN_LINE)[1], '172.18.0.2SCALAR(0x641fce3fe290)80"')
         self.assertEqual(len(row(BROKEN_LINE)), 6)
 
     def test_broken_line_gets_a_clean_ip_and_port(self):
@@ -50,6 +52,11 @@ class ParseRowTests(unittest.TestCase):
             "nikto_url": "/",
             "finding": "The anti-clickjacking X-Frame-Options header is not present.",
         })
+
+    def test_broken_line_with_the_quote_moved(self):
+        self.assertEqual(row(BROKEN_LINE_ALT)[1], '172.18.0.2SCALAR(0x5a381367a570)80"')
+        record = scan.parse_row(row(BROKEN_LINE_ALT), "web", "80")
+        self.assertEqual((record["ip"], record["port"], record["OSVDB"]), ("172.18.0.2", "80", "OSVDB-0"))
 
     def test_good_line_is_unchanged(self):
         record = scan.parse_row(row(GOOD_LINE), "web", "80")
