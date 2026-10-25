@@ -1,4 +1,6 @@
-from ubuntu:latest
+# Ubuntu 24.04 LTS, pinned by digest so a rebuild gets the same base.
+# Bump the tag and digest together: docker buildx imagetools inspect ubuntu:24.04
+FROM ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac
 
 
 #Install nmap
