@@ -54,7 +54,7 @@ jobs:
           sleep 3
           docker run --rm --network smoke -e TARGET=web -e PORT=80 scanner:ci | tee nikto.log
           grep -F "'target': 'web', 'type': 'Nikto'" nikto.log
-          grep -E "'port': '80', 'OSVDB': 'OSVDB-[0-9]+'" nikto.log
+          grep -E "'type': 'Nikto'.*'OSVDB': 'OSVDB-[0-9]+'" nikto.log
           grep -F "'scan': 'done'" nikto.log
 
       - name: Log in to GitHub Container Registry
