@@ -44,7 +44,8 @@ jobs:
           cache-from: type=gha
 
       # Scan a local nginx and check the records the bridge and the detection
-      # rules read (type Nikto, one record per CSV row with an OSVDB column).
+      # rules read (type Nikto, one record per CSV row with an OSVDB column, a
+      # clean ip and a numeric port).
       - name: Smoke scan against a local nginx
         timeout-minutes: 20
         run: |
@@ -52,10 +53,14 @@ jobs:
           docker network create smoke
           docker run -d --name web --network smoke nginx:1.27-alpine
           sleep 3
-          docker run --rm --network smoke -e TARGET=web -e PORT=80 scanner:ci | tee nikto.log
+          mkdir -p out && chmod 777 out
+          docker run --rm --network smoke -v "$PWD/out:/out" -e TARGET=web -e PORT=80 scanner:ci | tee nikto.log
+          echo "--- raw nikto CSV ---"; cat out/niktoscan.csv; echo "---"
           grep -F "'target': 'web', 'type': 'Nikto'" nikto.log
           grep -E "'type': 'Nikto'.*'OSVDB': 'OSVDB-[0-9]+'" nikto.log
           grep -F "'scan': 'done'" nikto.log
+          # every finding's ip is a clean IP/host and its port is numeric
+          python3 tests/check_findings.py nikto.log
 
       - name: Log in to GitHub Container Registry
         if: github.event_name != 'pull_request'
